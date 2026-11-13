@@ -37,6 +37,8 @@ MAX_BARRE = 60            # stop temporale: 60 barre da 4 ore = 10 giorni
 OZ_PER_LOTTO = 100        # CFD XAU/USD: 1 lotto = 100 once
 LOTTO_MINIMO = 0.01
 ROMA = ZoneInfo("Europe/Rome")
+TF = "4H"                 # etichetta del timeframe nei messaggi
+PROMEMORIA = "Prima di entrare: notizie CPI/NFP/FOMC nelle prossime 2 ore? Checklist completa?"
 
 CAPITALE_EUR = float(os.getenv("CAPITALE_EUR", "300"))
 RISCHIO_PCT = float(os.getenv("RISCHIO_PCT", "0.5"))
@@ -170,14 +172,14 @@ def simula(c: pd.DataFrame, eurusd: float):
             elif target_hit:
                 eventi.append((quando, f"ORO {lato} – TARGET raggiunto a {px(tp)} (+{RR_TARGET:g}R)\nRegistra il trade nel diario."))
                 pos = 0
-            elif i - bar_entry >= MAX_BARRE:
-                eventi.append((quando, f"ORO {lato} – STOP TEMPORALE: chiudi a mercato (~{px(b['close'])})"))
+            elif i - bar_entry >= MAX_BARRE or b.get("chiudi_sessione", False):
+                eventi.append((quando, f"ORO {lato} – CHIUSURA (tempo/fine sessione): chiudi a mercato (~{px(b['close'])})"))
                 pos = 0
             elif not pareggio and (b["high"] >= entry + r if pos == 1 else b["low"] <= entry - r):
                 sl, pareggio = entry, True
                 eventi.append((quando, f"ORO {lato} – +1R raggiunto: sposta lo stop a pareggio {px(entry)}"))
 
-        if pos != 0 or b["fine_settimana"]:
+        if pos != 0 or b["fine_settimana"] or b.get("blocco_news", False) or not b.get("sessione", True):
             continue
         long_ = b["trend_long"] and b["tocco_long"] and b["rsi_long"] and b["trig_long"]
         short_ = b["trend_short"] and b["tocco_short"] and b["rsi_short"] and b["trig_short"]
@@ -195,7 +197,7 @@ def simula(c: pd.DataFrame, eurusd: float):
         rischio_eur, lotti, rischio_min_eur = dimensione(r, eurusd)
         lato = "LONG" if long_ else "SHORT"
         testo = (
-            f"SETUP {lato} ORO (4H)\n"
+            f"SETUP {lato} ORO ({TF})\n"
             f"Entrata ~ {px(entry)} (apertura prossima candela)\n"
             f"Stop: {px(sl)}  (distanza {px(r)} $)\n"
             f"Target {RR_TARGET:g}R: {px(tp)}\n"
@@ -209,7 +211,7 @@ def simula(c: pd.DataFrame, eurusd: float):
                 f"(0,01) rischia ~{px(rischio_min_eur)} € = {perc:.0f}% del conto.\n"
                 f"Secondo il piano questo trade NON va fatto con soldi veri: usalo in demo.\n"
             )
-        testo += "Prima di entrare: notizie CPI/NFP/FOMC nelle prossime 2 ore? Checklist completa?"
+        testo += PROMEMORIA
         eventi.append((quando, testo))
     return eventi
 
@@ -247,7 +249,10 @@ def main():
         print("Dati insufficienti.")
         return
     eventi = simula(c, eurusd)
+    notifica(eventi, c, adesso)
 
+
+def notifica(eventi, c, adesso):
     stato = leggi_stato()
     ultimo = stato.get("ultimo_evento")
     ultimo = pd.Timestamp(ultimo) if ultimo else None
@@ -256,7 +261,7 @@ def main():
         # Prima esecuzione: non manda lo storico, registra solo il punto di partenza.
         stato["ultimo_evento"] = c["fine"].iloc[-1].isoformat()
         print(f"Prima esecuzione: {len(eventi)} eventi storici ignorati.")
-        invia("Bot segnali oro attivo. Ti scriverò solo quando le regole del piano si verificano.")
+        invia(f"Bot segnali oro {TF} attivo. Ti scriverò solo quando le regole del piano si verificano.")
     else:
         nuovi = [(t, m) for t, m in eventi if t > ultimo]
         for t, m in nuovi:
@@ -265,7 +270,6 @@ def main():
         stato["ultimo_evento"] = max([ultimo, c["fine"].iloc[-1]]).isoformat()
         print(f"Eventi nuovi: {len(nuovi)}")
 
-    stato["ultimo_controllo"] = adesso.isoformat()
     STATO.write_text(json.dumps(stato, indent=2))
 
 
