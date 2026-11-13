@@ -4,10 +4,9 @@ Segnali oro – versione intraday a 15 minuti.
 Stesse regole del piano, scalate:
   - trend: grafico a 1 ora (EMA 50 e EMA 200 sull'ultima candela oraria CHIUSA);
   - pullback, RSI e trigger: grafico a 15 minuti;
-  - entrate solo dalle 08:00 alle 17:00 (ora italiana), lun–ven;
-  - nessuna posizione overnight: alle 18:00 chiusura a mercato;
+  - attivo 24 ore su 24 (quando il mercato dell'oro è aperto);
   - niente entrate da 30 min prima a 30 min dopo i dati USD ad alto impatto
-    (calendario scaricato da notizie.py).
+    (calendario economico scaricato in automatico, nessun messaggio di notizie).
 """
 
 import os
@@ -25,8 +24,7 @@ base.TF = "15m"
 base.MAX_BARRE = 32                     # 8 ore al massimo
 base.RISCHIO_PCT = float(os.getenv("RISCHIO_PCT_15M", "3"))
 base.STATO = Path("stato_15m.json")
-base.PROMEMORIA = "Filtro notizie USD già applicato in automatico. Chiusura obbligatoria entro le 18:00. Checklist completa?"
-ORA_INIZIO, ORA_ULTIMA_ENTRATA, ORA_CHIUSURA = 8, 17, 18
+base.PROMEMORIA = "Checklist completa? Controlla il prezzo sul tuo broker prima di entrare."
 MARGINE_NEWS = timedelta(minutes=30)
 
 
@@ -84,11 +82,8 @@ def prepara(c15: pd.DataFrame, c1h: pd.DataFrame, eventi_news) -> pd.DataFrame:
     c["trig_long"] = (c["close"] > c["high"].shift(1)) & (c["rsi"] > 40)
     c["trig_short"] = (c["close"] < c["low"].shift(1)) & (c["rsi"] < 60)
 
-    roma = c["fine"].dt.tz_convert(base.ROMA)
-    feriale = roma.dt.dayofweek < 5
-    ora = roma.dt.hour + roma.dt.minute / 60
-    c["sessione"] = feriale & (ora > ORA_INIZIO) & (ora <= ORA_ULTIMA_ENTRATA)
-    c["chiudi_sessione"] = ~feriale | (ora >= ORA_CHIUSURA) | (ora <= ORA_INIZIO)
+    c["sessione"] = True                 # nessun limite di orario
+    c["chiudi_sessione"] = False
     c["fine_settimana"] = False
 
     blocco = np.zeros(len(c), dtype=bool)

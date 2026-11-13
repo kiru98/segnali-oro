@@ -173,7 +173,7 @@ def simula(c: pd.DataFrame, eurusd: float):
                 eventi.append((quando, f"ORO {lato} – TARGET raggiunto a {px(tp)} (+{RR_TARGET:g}R)\nRegistra il trade nel diario."))
                 pos = 0
             elif i - bar_entry >= MAX_BARRE or b.get("chiudi_sessione", False):
-                eventi.append((quando, f"ORO {lato} – CHIUSURA (tempo/fine sessione): chiudi a mercato (~{px(b['close'])})"))
+                eventi.append((quando, f"ORO {lato} – STOP TEMPORALE: chiudi a mercato (~{px(b['close'])})"))
                 pos = 0
             elif not pareggio and (b["high"] >= entry + r if pos == 1 else b["low"] <= entry - r):
                 sl, pareggio = entry, True
