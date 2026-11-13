@@ -1,0 +1,51 @@
+name: Segnali oro 15m
+
+on:
+  schedule:
+    - cron: "1,16,31,46 6-17 * * 1-5"   # ogni 15 minuti lun-ven, orari UTC che coprono 8-18 italiane
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Manda solo un messaggio di prova su Telegram"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: segnali-15m
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Controlla le regole 15m
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CAPITALE_EUR: ${{ vars.CAPITALE_EUR || '300' }}
+          RISCHIO_PCT: ${{ vars.RISCHIO_PCT || '0.5' }}
+          RISCHIO_PCT_15M: ${{ vars.RISCHIO_PCT_15M || '3' }}
+          TEST_MESSAGE: ${{ inputs.test && '1' || '0' }}
+        run: python segnali_15m.py
+
+      - name: Salva lo stato
+        run: |
+          git config user.name "segnali-oro-bot"
+          git config user.email "segnali-oro-bot@users.noreply.github.com"
+          git add stato_15m.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Aggiorna stato_15m.json"
+            for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done
+          fi

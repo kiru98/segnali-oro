@@ -1,8 +1,8 @@
-name: Segnali oro
+name: Segnali oro 4H
 
 on:
   schedule:
-    - cron: "7 * * * *"   # ogni ora, al minuto 7 (UTC)
+    - cron: "7 0,4,8,12,16,20 * * *"   # dopo ogni chiusura di candela a 4 ore (UTC)
   workflow_dispatch:
     inputs:
       test:
@@ -14,11 +14,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: segnali-oro
+  group: segnali-4h
   cancel-in-progress: false
 
 jobs:
-  segnali:
+  run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +30,13 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Controlla le regole e invia i segnali
+      - name: Controlla le regole 4H
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           CAPITALE_EUR: ${{ vars.CAPITALE_EUR || '300' }}
           RISCHIO_PCT: ${{ vars.RISCHIO_PCT || '0.5' }}
+          RISCHIO_PCT_15M: ${{ vars.RISCHIO_PCT_15M || '3' }}
           TEST_MESSAGE: ${{ inputs.test && '1' || '0' }}
         run: python segnali_oro.py
 
@@ -44,4 +45,7 @@ jobs:
           git config user.name "segnali-oro-bot"
           git config user.email "segnali-oro-bot@users.noreply.github.com"
           git add stato.json 2>/dev/null || true
-          git diff --cached --quiet || (git commit -m "Aggiorna stato" && git push)
+          if ! git diff --cached --quiet; then
+            git commit -m "Aggiorna stato.json"
+            for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done
+          fi
