@@ -1,0 +1,29 @@
+{
+  "giorno": "2026-11-13",
+  "eventi": [
+    {
+      "titolo": "Core CPI m/m",
+      "utc": "2026-11-10T13:30:00+00:00",
+      "previsione": "0.2%",
+      "precedente": "0.3%"
+    },
+    {
+      "titolo": "CPI m/m",
+      "utc": "2026-11-10T13:30:00+00:00",
+      "previsione": "0.3%",
+      "precedente": "0.6%"
+    },
+    {
+      "titolo": "Core PPI m/m",
+      "utc": "2026-11-13T13:30:00+00:00",
+      "previsione": "0.3%",
+      "precedente": "0.7%"
+    },
+    {
+      "titolo": "PPI m/m",
+      "utc": "2026-11-13T13:30:00+00:00",
+      "previsione": "0.4%",
+      "precedente": "1.3%"
+    }
+  ]
+}
