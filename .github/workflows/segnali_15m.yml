@@ -2,7 +2,7 @@ name: Segnali oro 15m
 
 on:
   schedule:
-    - cron: "1,16,31,46 6-17 * * 1-5"   # ogni 15 minuti lun-ven, orari UTC che coprono 8-18 italiane
+    - cron: "1,31 * * * *"   # ogni 30 minuti, 24 ore su 24
   workflow_dispatch:
     inputs:
       test:
@@ -44,8 +44,8 @@ jobs:
         run: |
           git config user.name "segnali-oro-bot"
           git config user.email "segnali-oro-bot@users.noreply.github.com"
-          git add stato_15m.json 2>/dev/null || true
+          git add stato_15m.json calendario.json 2>/dev/null || true
           if ! git diff --cached --quiet; then
-            git commit -m "Aggiorna stato_15m.json"
+            git commit -m "Aggiorna stato 15m"
             for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 5; done
           fi
