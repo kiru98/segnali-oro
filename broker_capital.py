@@ -27,10 +27,10 @@ def _base() -> str:
 def _sessione() -> dict:
     r = requests.post(
         f"{_base()}/session",
-        headers={"X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"], "Content-Type": "application/json"},
+        headers={"X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"].strip(), "Content-Type": "application/json"},
         json={
-            "identifier": os.environ["CAPITAL_IDENTIFIER"],
-            "password": os.environ["CAPITAL_API_PASSWORD"],
+            "identifier": os.environ["CAPITAL_IDENTIFIER"].strip(),
+            "password": os.environ["CAPITAL_API_PASSWORD"].strip(),
             "encryptedPassword": False,
         },
         timeout=20,
@@ -38,7 +38,7 @@ def _sessione() -> dict:
     if not r.ok:
         raise RuntimeError(f"login Capital.com fallito ({r.status_code}): {r.text[:300]}")
     return {
-        "X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"],
+        "X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"].strip(),
         "CST": r.headers["CST"],
         "X-SECURITY-TOKEN": r.headers["X-SECURITY-TOKEN"],
         "Content-Type": "application/json",
