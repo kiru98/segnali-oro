@@ -9,6 +9,10 @@ on:
         description: "Manda solo un messaggio di prova su Telegram"
         type: boolean
         default: false
+      test_ordine:
+        description: "Test Capital.com demo: login e, se ORDINI_ATTIVI=1, apre e chiude un ordine di prova"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,6 +42,7 @@ jobs:
           RISCHIO_PCT: ${{ vars.RISCHIO_PCT || '0.5' }}
           RISCHIO_PCT_15M: ${{ vars.RISCHIO_PCT_15M || '3' }}
           TEST_MESSAGE: ${{ inputs.test && '1' || '0' }}
+          TEST_ORDINE: ${{ inputs.test_ordine && '1' || '0' }}
           CAPITAL_API_KEY: ${{ secrets.CAPITAL_API_KEY }}
           CAPITAL_IDENTIFIER: ${{ secrets.CAPITAL_IDENTIFIER }}
           CAPITAL_API_PASSWORD: ${{ secrets.CAPITAL_API_PASSWORD }}

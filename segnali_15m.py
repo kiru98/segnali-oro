@@ -100,6 +100,10 @@ def main():
     if os.getenv("TEST_MESSAGE") == "1":
         base.invia("Test riuscito: versione 15 minuti collegata.")
         return
+    if os.getenv("TEST_ORDINE") == "1":
+        import ordini
+        ordini.prova()
+        return
     adesso = datetime.now(timezone.utc)
     m, eurusd = scarica_dati()
     eventi_news = notizie.calendario(aggiorna=True)

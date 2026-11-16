@@ -32,3 +32,26 @@ def esegui(setup_nuovi: list) -> None:
             base.invia(f"Ordine inviato al conto DEMO Capital.com: {descrizione}")
         except Exception as e:  # errore del broker: lo segnalo, non fermo il bot
             base.invia(f"ERRORE ordine demo: {e} | {descrizione}")
+
+
+def prova() -> None:
+    """Test manuale dal workflow: verifica la connessione al demo e, con ORDINI_ATTIVI=1,
+    apre e chiude subito un ordine minimo su GOLD."""
+    try:
+        aperta = broker.posizione_aperta()
+        base.invia(f"Test Capital.com demo: connessione OK. Posizione GOLD aperta: {'sì' if aperta else 'no'}.")
+        if os.getenv("ORDINI_ATTIVI") != "1":
+            base.invia("Test ordine NON eseguito: ORDINI_ATTIVI non è 1. Verificata solo la connessione.")
+            return
+        if aperta:
+            base.invia("Test ordine NON eseguito: c'è già una posizione GOLD aperta.")
+            return
+        h, _, _ = base.scarica_dati()
+        prezzo = float(h["close"].iloc[-1])
+        dim = int(os.getenv("TEST_DIMENSIONE", "1"))
+        broker.apri("LONG", dim, round(prezzo * 0.99, 2), round(prezzo * 1.01, 2))
+        base.invia(f"Test: ordine di prova aperto ({dim} unità a ~{base.px(prezzo)}).")
+        chiuse = broker.chiudi()
+        base.invia(f"Test: ordine di prova chiuso ({chiuse} posizioni).")
+    except Exception as e:
+        base.invia(f"ERRORE test Capital.com: {e}")

@@ -74,3 +74,16 @@ def apri(lato: str, dimensione: int, sl: float, tp: float) -> dict:
     if esito.get("dealStatus") != "ACCEPTED":
         raise RuntimeError(f"ordine non accettato: {esito.get('reason', esito)}")
     return esito
+
+
+def chiudi() -> int:
+    h = _sessione()
+    r = requests.get(f"{_base()}/positions", headers=h, timeout=20)
+    r.raise_for_status()
+    chiuse = 0
+    for p in r.json().get("positions", []):
+        if p["market"]["epic"] == EPIC:
+            d = requests.delete(f"{_base()}/positions/{p['position']['dealId']}", headers=h, timeout=20)
+            d.raise_for_status()
+            chiuse += 1
+    return chiuse
