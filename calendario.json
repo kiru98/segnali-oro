@@ -1,29 +1,29 @@
 {
-  "giorno": "2026-11-15",
+  "giorno": "2026-11-16",
   "eventi": [
     {
-      "titolo": "Core CPI m/m",
-      "utc": "2026-11-10T13:30:00+00:00",
-      "previsione": "0.2%",
-      "precedente": "0.3%"
+      "titolo": "Fed Chairman Warsh Speaks",
+      "utc": "2026-11-16T17:00:00+00:00",
+      "previsione": "",
+      "precedente": ""
     },
     {
-      "titolo": "CPI m/m",
-      "utc": "2026-11-10T13:30:00+00:00",
-      "previsione": "0.3%",
-      "precedente": "0.6%"
-    },
-    {
-      "titolo": "Core PPI m/m",
-      "utc": "2026-11-13T13:30:00+00:00",
-      "previsione": "0.3%",
-      "precedente": "0.7%"
-    },
-    {
-      "titolo": "PPI m/m",
-      "utc": "2026-11-13T13:30:00+00:00",
+      "titolo": "Core Retail Sales m/m",
+      "utc": "2026-11-17T13:30:00+00:00",
       "previsione": "0.4%",
-      "precedente": "1.3%"
+      "precedente": "0.9%"
+    },
+    {
+      "titolo": "Retail Sales m/m",
+      "utc": "2026-11-17T13:30:00+00:00",
+      "previsione": "0.2%",
+      "precedente": "0.8%"
+    },
+    {
+      "titolo": "FOMC Meeting Minutes",
+      "utc": "2026-11-18T19:00:00+00:00",
+      "previsione": "",
+      "precedente": ""
     }
   ]
 }
