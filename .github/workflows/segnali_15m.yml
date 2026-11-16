@@ -2,7 +2,7 @@ name: Segnali oro 15m
 
 on:
   schedule:
-    - cron: "1,31 * * * *"   # ogni 30 minuti, 24 ore su 24
+    - cron: "*/5 * * * *"   # ogni 5 minuti, 24 ore su 24   # ogni 30 minuti, 24 ore su 24
   workflow_dispatch:
     inputs:
       test:
