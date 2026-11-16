@@ -2,7 +2,7 @@ name: Segnali oro 15m
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # ogni 5 minuti, 24 ore su 24   # ogni 30 minuti, 24 ore su 24
+    - cron: "*/5 * * * *"   # ogni 5 minuti, 24 ore su 24
   workflow_dispatch:
     inputs:
       test:
@@ -38,6 +38,10 @@ jobs:
           RISCHIO_PCT: ${{ vars.RISCHIO_PCT || '0.5' }}
           RISCHIO_PCT_15M: ${{ vars.RISCHIO_PCT_15M || '3' }}
           TEST_MESSAGE: ${{ inputs.test && '1' || '0' }}
+          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
+          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
+          MODALITA_DEMO: "1"
+          ORDINI_ATTIVI: ${{ vars.ORDINI_ATTIVI || '0' }}
         run: python segnali_15m.py
 
       - name: Salva lo stato

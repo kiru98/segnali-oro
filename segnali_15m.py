@@ -108,7 +108,11 @@ def main():
         print("Dati insufficienti.")
         return
     eventi = base.simula(c, eurusd)
+    ultimo = base.leggi_stato().get("ultimo_evento")
     base.notifica(eventi, c, adesso)
+    if ultimo:  # alla prima esecuzione non si inviano ordini per lo storico
+        import ordini
+        ordini.esegui([s for s in base.SETUP if s["quando"] > pd.Timestamp(ultimo)])
 
 
 if __name__ == "__main__":

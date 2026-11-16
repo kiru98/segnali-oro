@@ -39,6 +39,7 @@ LOTTO_MINIMO = 0.01
 ROMA = ZoneInfo("Europe/Rome")
 TF = "4H"                 # etichetta del timeframe nei messaggi
 PROMEMORIA = "Prima di entrare: notizie CPI/NFP/FOMC nelle prossime 2 ore? Checklist completa?"
+SETUP = []  # setup generati da simula(), usati per inviare gli ordini al conto demo
 
 CAPITALE_EUR = float(os.getenv("CAPITALE_EUR", "300"))
 RISCHIO_PCT = float(os.getenv("RISCHIO_PCT", "0.5"))
@@ -213,6 +214,7 @@ def simula(c: pd.DataFrame, eurusd: float):
             )
         testo += PROMEMORIA
         eventi.append((quando, testo))
+        SETUP.append({"quando": quando, "lato": lato, "entry": entry, "sl": sl, "tp": tp, "lotti": lotti})
     return eventi
 
 
