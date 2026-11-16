@@ -35,7 +35,8 @@ def _sessione() -> dict:
         },
         timeout=20,
     )
-    r.raise_for_status()
+    if not r.ok:
+        raise RuntimeError(f"login Capital.com fallito ({r.status_code}): {r.text[:300]}")
     return {
         "X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"],
         "CST": r.headers["CST"],
