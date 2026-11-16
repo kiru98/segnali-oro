@@ -7,7 +7,7 @@ ORDINI_ATTIVI=1 invia davvero gli ordini; altrimenti manda solo un messaggio
 
 import os
 
-import broker_oanda as broker
+import broker_capital as broker
 import segnali_oro as base
 
 
@@ -29,6 +29,6 @@ def esegui(setup_nuovi: list) -> None:
                 base.invia(f"Ordine NON inviato: c'è già una posizione aperta. {descrizione}")
                 continue
             broker.apri(s["lato"], unita, s["sl"], s["tp"])
-            base.invia(f"Ordine inviato al conto DEMO: {descrizione}")
+            base.invia(f"Ordine inviato al conto DEMO Capital.com: {descrizione}")
         except Exception as e:  # errore del broker: lo segnalo, non fermo il bot
             base.invia(f"ERRORE ordine demo: {e} | {descrizione}")

@@ -38,8 +38,9 @@ jobs:
           RISCHIO_PCT: ${{ vars.RISCHIO_PCT || '0.5' }}
           RISCHIO_PCT_15M: ${{ vars.RISCHIO_PCT_15M || '3' }}
           TEST_MESSAGE: ${{ inputs.test && '1' || '0' }}
-          OANDA_API_KEY: ${{ secrets.OANDA_API_KEY }}
-          OANDA_ACCOUNT_ID: ${{ secrets.OANDA_ACCOUNT_ID }}
+          CAPITAL_API_KEY: ${{ secrets.CAPITAL_API_KEY }}
+          CAPITAL_IDENTIFIER: ${{ secrets.CAPITAL_IDENTIFIER }}
+          CAPITAL_API_PASSWORD: ${{ secrets.CAPITAL_API_PASSWORD }}
           MODALITA_DEMO: "1"
           ORDINI_ATTIVI: ${{ vars.ORDINI_ATTIVI || '0' }}
         run: python segnali_15m.py
