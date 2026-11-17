@@ -19,11 +19,14 @@ def _avvisa(testo: str) -> None:
         print("Telegram non raggiungibile:", e)
 
 
+SCOSTAMENTO_MAX = 5.0  # dollari: oltre questa distanza dal segnale l'ordine non parte
+
+
 def esegui(setup_nuovi: list) -> None:
     for s in setup_nuovi:
         unita = int(round(s["lotti"] * base.OZ_PER_LOTTO))
         descrizione = (
-            f"{s['lato']} ORO {unita} oz | entrata ~{base.px(s['entry'])} | "
+            f"{s['lato']} ORO {unita} oz | entrata segnale ~{base.px(s['entry'])} | "
             f"stop {base.px(s['sl'])} | target {base.px(s['tp'])}"
         )
         if unita < 1:
@@ -36,8 +39,25 @@ def esegui(setup_nuovi: list) -> None:
             if broker.posizione_aperta():
                 _avvisa(f"Ordine NON inviato: c'è già una posizione aperta. {descrizione}")
                 continue
-            broker.apri(s["lato"], unita, s["sl"], s["tp"])
-            _avvisa(f"Ordine inviato al conto DEMO Capital.com: {descrizione}")
+            attuale = broker.prezzo_attuale()
+            scostamento = abs(attuale - s["entry"])
+            if scostamento > SCOSTAMENTO_MAX:
+                _avvisa(
+                    f"Ordine NON inviato: il prezzo ora è {base.px(attuale)}, "
+                    f"{scostamento:.2f} $ lontano dal segnale (limite {SCOSTAMENTO_MAX} $). {descrizione}"
+                )
+                continue
+            # stessa distanza in dollari del segnale, misurata dal prezzo di riempimento
+            distanza_sl = abs(s["entry"] - s["sl"])
+            distanza_tp = abs(s["tp"] - s["entry"])
+            esito = broker.apri(s["lato"], unita, distanza_sl, distanza_tp)
+            riempimento = esito.get("level")
+            _avvisa(
+                f"Ordine inviato al conto DEMO Capital.com: {s['lato']} ORO {unita} oz | "
+                f"riempito a {base.px(float(riempimento)) if riempimento else 'n.d.'} | "
+                f"stop {esito.get('stopLevel', 'n.d.')} | target {esito.get('profitLevel', 'n.d.')} "
+                f"(segnale: entrata {base.px(s['entry'])}, distanze invariate)"
+            )
         except Exception as e:  # errore del broker: lo segnalo, non fermo il bot
             _avvisa(f"ERRORE ordine demo: {e} | {descrizione}")
 
@@ -57,7 +77,7 @@ def prova() -> None:
         h, _, _ = base.scarica_dati()
         prezzo = float(h["close"].iloc[-1])
         dim = int(os.getenv("TEST_DIMENSIONE", "1"))
-        broker.apri("LONG", dim, round(prezzo * 0.99, 2), round(prezzo * 1.01, 2))
+        broker.apri("LONG", dim, round(prezzo * 0.01, 2), round(prezzo * 0.01, 2))
         _avvisa(f"Test: ordine di prova aperto ({dim} unità a ~{base.px(prezzo)}).")
         chiuse = broker.chiudi()
         _avvisa(f"Test: ordine di prova chiuso ({chiuse} posizioni).")
