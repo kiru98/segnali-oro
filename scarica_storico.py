@@ -23,22 +23,23 @@ def _data(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+def _chiedi(h: dict, base: str, params: dict) -> list:
+    r = requests.get(f"{base}/prices/{broker.EPIC}", headers=h, params=params, timeout=30)
+    if not r.ok:
+        raise RuntimeError(f"prezzi storici {r.status_code}: {r.text[:300]}")
+    return r.json().get("prices", [])
+
+
 def scarica() -> pd.DataFrame:
+    """Scarica a ritroso: la prima chiamata prende le ultime candele, poi si usa 'to'
+    con la candela più vecchia per andare più indietro, fino a coprire GIORNI."""
     h = broker._sessione()
     base = broker._base()
-    fine = datetime.now(timezone.utc).replace(tzinfo=None)
-    inizio = fine - timedelta(days=GIORNI)
+    inizio = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=GIORNI)
     righe = []
-    cursore = inizio
-    while cursore < fine:
-        r = requests.get(
-            f"{base}/prices/{broker.EPIC}",
-            headers=h,
-            params={"resolution": RISOLUZIONE, "max": MAX_PER_CHIAMATA, "from": _data(cursore), "to": _data(fine)},
-            timeout=30,
-        )
-        r.raise_for_status()
-        prezzi = r.json().get("prices", [])
+    params = {"resolution": RISOLUZIONE, "max": MAX_PER_CHIAMATA}
+    for _ in range(100):  # tetto di sicurezza
+        prezzi = _chiedi(h, base, params)
         if not prezzi:
             break
         for p in prezzi:
@@ -49,10 +50,10 @@ def scarica() -> pd.DataFrame:
                 "low": (p["lowPrice"]["bid"] + p["lowPrice"]["ask"]) / 2,
                 "close": (p["closePrice"]["bid"] + p["closePrice"]["ask"]) / 2,
             })
-        ultimo = datetime.fromisoformat(prezzi[-1]["snapshotTimeUTC"].replace("Z", ""))
-        if ultimo <= cursore:
-            break  # niente avanzamento: evito un ciclo infinito
-        cursore = ultimo + timedelta(minutes=15)
+        piu_vecchia = min(datetime.fromisoformat(p["snapshotTimeUTC"].replace("Z", "")) for p in prezzi)
+        if piu_vecchia <= inizio:
+            break
+        params = {**params, "to": _data(piu_vecchia)}
     df = pd.DataFrame(righe).drop_duplicates("time").sort_values("time")
     return df
 
