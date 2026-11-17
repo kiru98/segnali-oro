@@ -21,7 +21,7 @@ def _avvisa(testo: str) -> None:
 
 def esegui(setup_nuovi: list) -> None:
     for s in setup_nuovi:
-        unita = int(round(s["lotti"] * base.OZ_PER_LOTTO))
+        unita = int(round(base.LOTTO_MINIMO * base.OZ_PER_LOTTO))  # sempre 0.01 lotti = 1 oz
         descrizione = (
             f"{s['lato']} ORO {unita} oz | entrata ~{base.px(s['entry'])} | "
             f"stop {base.px(s['sl'])} | target {base.px(s['tp'])}"

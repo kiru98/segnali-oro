@@ -70,9 +70,8 @@ class Stato:
 
 
 def dimensione(distanza_sl: float, eurusd: float = 1.10) -> int:
-    rischio_usd = CAPITALE_EUR * RISCHIO_PCT / 100 * eurusd
-    lotti = int(rischio_usd / (distanza_sl * OZ_PER_LOTTO) * 100) / 100
-    return int(round(lotti * OZ_PER_LOTTO))
+    """Sempre 0.01 lotti = 1 oz per operazione."""
+    return 1
 
 
 def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordine):
