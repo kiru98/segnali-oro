@@ -36,7 +36,7 @@ def esegui(setup_nuovi: list) -> None:
             if broker.posizione_aperta():
                 _avvisa(f"Ordine NON inviato: c'è già una posizione aperta. {descrizione}")
                 continue
-            broker.apri(s["lato"], unita, s["sl"], s["tp"])
+            broker.apri(s["lato"], unita, abs(s["entry"] - s["sl"]), abs(s["tp"] - s["entry"]))
             _avvisa(f"Ordine inviato al conto DEMO Capital.com: {descrizione}")
         except Exception as e:  # errore del broker: lo segnalo, non fermo il bot
             _avvisa(f"ERRORE ordine demo: {e} | {descrizione}")
@@ -57,7 +57,7 @@ def prova() -> None:
         h, _, _ = base.scarica_dati()
         prezzo = float(h["close"].iloc[-1])
         dim = int(os.getenv("TEST_DIMENSIONE", "1"))
-        broker.apri("LONG", dim, round(prezzo * 0.99, 2), round(prezzo * 1.01, 2))
+        broker.apri("LONG", dim, round(prezzo * 0.01, 2), round(prezzo * 0.01, 2))
         _avvisa(f"Test: ordine di prova aperto ({dim} unità a ~{base.px(prezzo)}).")
         chiuse = broker.chiudi()
         _avvisa(f"Test: ordine di prova chiuso ({chiuse} posizioni).")

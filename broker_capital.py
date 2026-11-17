@@ -55,14 +55,25 @@ def posizione_aperta() -> bool:
     return False
 
 
-def apri(lato: str, dimensione: int, sl: float, tp: float) -> dict:
+def prezzo_bid_ask() -> tuple[float, float]:
+    """Denaro e lettera attuali dal broker."""
+    h = _sessione()
+    r = requests.get(f"{_base()}/markets/{EPIC}", headers=h, timeout=20)
+    r.raise_for_status()
+    snap = r.json()["snapshot"]
+    return float(snap["bid"]), float(snap["offer"])
+
+
+def apri(lato: str, dimensione: int, distanza_sl: float, distanza_tp: float) -> dict:
+    """Ordine a mercato. Stop e target sono distanze dal prezzo di riempimento reale,
+    così il rischio in dollari resta quello del segnale."""
     h = _sessione()
     body = {
         "epic": EPIC,
         "direction": "BUY" if lato == "LONG" else "SELL",
         "size": dimensione,
-        "stopLevel": round(sl, DECIMALI_PREZZO),
-        "profitLevel": round(tp, DECIMALI_PREZZO),
+        "stopDistance": round(distanza_sl, DECIMALI_PREZZO),
+        "profitDistance": round(distanza_tp, DECIMALI_PREZZO),
         "guaranteedStop": False,
     }
     r = requests.post(f"{_base()}/positions", headers=h, json=body, timeout=20)
