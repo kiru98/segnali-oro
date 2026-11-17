@@ -1,0 +1,41 @@
+name: Storico oro (backtest)
+
+# Solo manuale: scarica lo storico a 15 minuti dal conto DEMO Capital.com.
+# Non apre né chiude ordini.
+on:
+  workflow_dispatch:
+    inputs:
+      giorni:
+        description: "Quanti giorni di storico scaricare"
+        type: string
+        default: "60"
+
+permissions:
+  contents: read
+
+jobs:
+  storico:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Scarica lo storico
+        env:
+          CAPITAL_API_KEY: ${{ secrets.CAPITAL_API_KEY }}
+          CAPITAL_IDENTIFIER: ${{ secrets.CAPITAL_IDENTIFIER }}
+          CAPITAL_API_PASSWORD: ${{ secrets.CAPITAL_API_PASSWORD }}
+          MODALITA_DEMO: "1"
+          GIORNI_STORICO: ${{ inputs.giorni }}
+        run: python scarica_storico.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: storico-gold-15m
+          path: storico_gold_15m.csv
