@@ -114,8 +114,9 @@ def replay(path: str):
 
 def live():
     import broker_capital as broker
-    import ordini  # noqa: F401  (messaggi Telegram)
+    import ordini
     import scarica_storico
+    import segnali_oro as base
 
     storico = scarica_storico.scarica()
     storico["time"] = pd.to_datetime(storico["time"])
@@ -125,11 +126,21 @@ def live():
 
     def invia(lato, prezzo, sl, tp, unita):
         nome = "LONG" if lato == 1 else "SHORT"
+        descrizione = (
+            f"{nome} ORO {unita} oz | entrata ~{base.px(prezzo)} | "
+            f"stop {base.px(sl)} | target {base.px(tp)}"
+        )
         if not attivi or unita < 1:
-            print("SIMULATO", nome, prezzo, sl, tp, unita)
+            print("SIMULATO", descrizione, flush=True)
+            ordini._avvisa(f"ORDINE SIMULATO (ordini disattivati): {descrizione}")
             return
-        esito = broker.apri(nome, unita, abs(prezzo - sl), abs(tp - prezzo))
-        print("INVIATO", nome, esito.get("level"), esito.get("stopLevel"), esito.get("profitLevel"))
+        try:
+            esito = broker.apri(nome, unita, abs(prezzo - sl), abs(tp - prezzo))
+            print("INVIATO", descrizione, flush=True)
+            ordini._avvisa(f"Ordine inviato al conto DEMO Capital.com: {descrizione} | riempito a {esito.get('level')}")
+        except Exception as e:
+            print("ERRORE", e, flush=True)
+            ordini._avvisa(f"ERRORE ordine demo: {e} | {descrizione}")
 
     while True:
         try:
