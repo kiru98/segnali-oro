@@ -134,7 +134,7 @@ def live():
     while True:
         try:
             bid, ask = broker.prezzo_bid_ask()
-            gestisci_tick(stato, datetime.now(timezone.utc), bid, ask, invia)
+            gestisci_tick(stato, datetime.now(timezone.utc).replace(tzinfo=None), bid, ask, invia)
         except Exception as e:
             print("Errore:", e)
         time.sleep(INTERVALLO_SECONDI)
