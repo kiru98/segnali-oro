@@ -24,7 +24,22 @@ def _base() -> str:
     return "https://demo-api-capital.backend-capital.com/api/v1"
 
 
+_SESSIONE_CACHE = {"header": None, "quando": 0.0}
+DURATA_SESSIONE_SECONDI = 300  # riusa il login per 5 minuti: evita il limite di richieste di Capital.com
+
+
 def _sessione() -> dict:
+    """Riusa la sessione per qualche minuto: un login per ogni controllo fa scattare il limite (429)."""
+    import time
+
+    if _SESSIONE_CACHE["header"] and time.time() - _SESSIONE_CACHE["quando"] < DURATA_SESSIONE_SECONDI:
+        return dict(_SESSIONE_CACHE["header"])
+    header = _login()
+    _SESSIONE_CACHE.update({"header": header, "quando": time.time()})
+    return dict(header)
+
+
+def _login() -> dict:
     r = requests.post(
         f"{_base()}/session",
         headers={"X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"].strip(), "Content-Type": "application/json"},
