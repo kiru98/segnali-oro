@@ -60,6 +60,13 @@ def _login() -> dict:
     }
 
 
+def conta_posizioni_gold() -> int:
+    h = _sessione()
+    r = requests.get(f"{_base()}/positions", headers=h, timeout=20)
+    r.raise_for_status()
+    return sum(1 for p in r.json().get("positions", []) if p["market"]["epic"] == EPIC)
+
+
 def posizione_aperta() -> bool:
     h = _sessione()
     r = requests.get(f"{_base()}/positions", headers=h, timeout=20)

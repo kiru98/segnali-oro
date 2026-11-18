@@ -27,14 +27,16 @@ SCOSTAMENTO_MAX = 5.0  # dollari tra prezzo del tick e prezzo di riempimento
 
 
 MAX_BARRE_POSIZIONE = 32  # come nella strategia: dopo 32 candele da 15 minuti la posizione scade
+MAX_POSIZIONI = int(os.getenv("MAX_POSIZIONI", "1"))  # quante operazioni aperte in contemporanea
 
 
 class Stato:
     def __init__(self, storico: pd.DataFrame):
         self.chiuse = storico.sort_index()  # candele 15m chiuse
         self.corrente = None  # dict: inizio, open, high, low, close
-        self.in_posizione = False
-        self.scadenza = None  # istante oltre il quale la posizione non è più considerata aperta
+        self.scadenze = []  # lista di (istante di apertura, istante di scadenza) delle posizioni locali
+        self.bar_entrata = None  # candela in cui è già stato aperto un ordine (un ingresso per candela)
+        self.broker_aperte = None  # posizioni GOLD aperte sul broker, aggiornate ogni 30 secondi nel live
         self._prep = None  # cache dei filtri, ricalcolata solo a candela chiusa
 
     def aggiungi_tick(self, t: datetime, prezzo: float):
@@ -74,12 +76,26 @@ def dimensione(distanza_sl: float, eurusd: float = 1.10) -> int:
     return 1
 
 
+def posizioni_occupate(stato: Stato, ora: pd.Timestamp) -> int:
+    """Quante operazioni risultano aperte adesso.
+    Nel live usa il conteggio del broker più le aperture degli ultimi 2 minuti (il broker può essere in ritardo)."""
+    if stato.broker_aperte is None:
+        return len(stato.scadenze)
+    recenti = sum(1 for apertura, _ in stato.scadenze if ora - apertura < pd.Timedelta(minutes=2))
+    return stato.broker_aperte + recenti
+
+
 def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordine):
     """Applica la regola a un tick. invia_ordine(lato, prezzo, sl, tp, unita) apre l'ordine."""
     stato.aggiungi_tick(t, (bid + ask) / 2)
-    if stato.in_posizione and stato.scadenza is not None and pd.Timestamp(t) >= stato.scadenza:
-        stato.in_posizione = False
-    if stato.in_posizione or len(stato.chiuse) < 300:
+    ora = pd.Timestamp(t)
+    stato.scadenze = [(a, sc) for a, sc in stato.scadenze if sc > ora]
+    if len(stato.chiuse) < 300:
+        return None
+    if posizioni_occupate(stato, ora) >= MAX_POSIZIONI:
+        return None
+    barra = stato.corrente["inizio"]
+    if stato.bar_entrata == barra:  # al massimo un ingresso per candela
         return None
     ultima = stato.ultima_chiusa()
     esito = regole.scatta(ultima, bid, ask)
@@ -88,8 +104,8 @@ def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordin
     lato, entrata = esito
     sl, tp = regole.livelli(ultima, entrata, lato)
     unita = dimensione(abs(entrata - sl))
-    stato.in_posizione = True
-    stato.scadenza = pd.Timestamp(t).floor("15min") + pd.Timedelta(minutes=15 * MAX_BARRE_POSIZIONE)
+    stato.bar_entrata = barra
+    stato.scadenze.append((ora, ora.floor("15min") + pd.Timedelta(minutes=15 * MAX_BARRE_POSIZIONE)))
     invia_ordine(lato, entrata, sl, tp, unita)
     return esito
 
@@ -142,8 +158,12 @@ def live():
             print("ERRORE", e, flush=True)
             ordini._avvisa(f"ERRORE ordine demo: {e} | {descrizione}")
 
+    ultimo_conteggio = 0.0
     while True:
         try:
+            if time.time() - ultimo_conteggio > 30:
+                stato.broker_aperte = broker.conta_posizioni_gold()
+                ultimo_conteggio = time.time()
             bid, ask = broker.prezzo_bid_ask()
             gestisci_tick(stato, datetime.now(timezone.utc).replace(tzinfo=None), bid, ask, invia)
         except Exception as e:
