@@ -13,10 +13,10 @@ import requests
 
 import broker_capital as broker
 
-RISOLUZIONE = "MINUTE_15"
+RISOLUZIONE = os.getenv("RISOLUZIONE", "MINUTE_15")  # es. MINUTE_5 per lo scalping
 GIORNI = int(os.getenv("GIORNI_STORICO", "60"))
 MAX_PER_CHIAMATA = 1000
-FILE_OUT = "storico_gold_15m.csv"
+FILE_OUT = os.getenv("FILE_OUT", "storico_gold_15m.csv")
 
 
 def _data(dt: datetime) -> str:

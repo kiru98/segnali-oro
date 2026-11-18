@@ -9,6 +9,13 @@ on:
         description: "Quanti giorni di storico scaricare"
         type: string
         default: "60"
+      risoluzione:
+        description: "Candele da scaricare"
+        type: choice
+        options:
+          - MINUTE_15
+          - MINUTE_5
+        default: "MINUTE_15"
 
 permissions:
   contents: read
@@ -33,9 +40,11 @@ jobs:
           CAPITAL_API_PASSWORD: ${{ secrets.CAPITAL_API_PASSWORD }}
           MODALITA_DEMO: "1"
           GIORNI_STORICO: ${{ inputs.giorni }}
+          RISOLUZIONE: ${{ inputs.risoluzione }}
+          FILE_OUT: storico_gold_${{ inputs.risoluzione }}.csv
         run: python scarica_storico.py
 
       - uses: actions/upload-artifact@v4
         with:
-          name: storico-gold-15m
-          path: storico_gold_15m.csv
+          name: storico-gold-${{ inputs.risoluzione }}
+          path: storico_gold_${{ inputs.risoluzione }}.csv
