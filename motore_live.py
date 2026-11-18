@@ -36,6 +36,7 @@ class Stato:
         self.corrente = None  # dict: inizio, open, high, low, close
         self.scadenze = []  # lista di (istante di apertura, istante di scadenza) delle posizioni locali
         self.bar_entrata = None  # candela in cui è già stato aperto un ordine (un ingresso per candela)
+        self.armato = {1: True, -1: True}  # False dopo un ingresso: si riarma quando il segnale si esaurisce
         self.broker_aperte = None  # posizioni GOLD aperte sul broker, aggiornate ogni 30 secondi nel live
         self._prep = None  # cache dei filtri, ricalcolata solo a candela chiusa
 
@@ -98,10 +99,17 @@ def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordin
     if stato.bar_entrata == barra:  # al massimo un ingresso per candela
         return None
     ultima = stato.ultima_chiusa()
+    if not ultima["pronto_long"]:
+        stato.armato[1] = True
+    if not ultima["pronto_short"]:
+        stato.armato[-1] = True
     esito = regole.scatta(ultima, bid, ask)
     if esito is None:
         return None
     lato, entrata = esito
+    if not stato.armato[lato]:  # stesso segnale già usato: non apro di nuovo
+        return None
+    stato.armato[lato] = False
     sl, tp = regole.livelli(ultima, entrata, lato)
     unita = dimensione(abs(entrata - sl))
     stato.bar_entrata = barra
