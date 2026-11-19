@@ -1,5 +1,6 @@
 """
-Invio ordini al conto DEMO di Capital.com (API REST).
+Invio ordini a Capital.com (API REST): demo con MODALITA_DEMO=1, reale solo con
+MODALITA_REALE=1 e CONFERMA_REALE=SI_SOLDI_VERI.
 
 Sicurezza:
   - funziona solo con MODALITA_DEMO=1 e usa sempre il server demo;
@@ -18,10 +19,39 @@ EPIC = "GOLD"
 DECIMALI_PREZZO = 2  # da verificare sul conto demo
 
 
+CONFERMA_REALE = "SI_SOLDI_VERI"
+
+
+def conto_reale() -> bool:
+    """True solo con MODALITA_REALE=1 e la frase di conferma esatta; mai insieme al demo."""
+    return os.getenv("MODALITA_REALE") == "1" and os.getenv("CONFERMA_REALE") == CONFERMA_REALE
+
+
 def _base() -> str:
-    if os.getenv("MODALITA_DEMO") != "1":
-        raise RuntimeError("Ordini bloccati: MODALITA_DEMO deve essere 1 (solo conto demo).")
-    return "https://demo-api-capital.backend-capital.com/api/v1"
+    demo = os.getenv("MODALITA_DEMO") == "1"
+    reale = conto_reale()
+    if demo and reale:
+        raise RuntimeError("Configurazione ambigua: MODALITA_DEMO e MODALITA_REALE attive insieme.")
+    if reale:
+        return "https://api-capital.backend-capital.com/api/v1"
+    if demo:
+        return "https://demo-api-capital.backend-capital.com/api/v1"
+    raise RuntimeError("Ordini bloccati: imposta MODALITA_DEMO=1, oppure MODALITA_REALE=1 con CONFERMA_REALE.")
+
+
+def nome_conto() -> str:
+    return "REALE" if conto_reale() else "DEMO"
+
+
+def equity_eur() -> float:
+    """Saldo + profitto/perdita aperto del conto preferito (valuta del conto)."""
+    h = _sessione()
+    r = requests.get(f"{_base()}/accounts", headers=h, timeout=20)
+    r.raise_for_status()
+    conti = r.json().get("accounts", [])
+    conto = next((a for a in conti if a.get("preferred")), conti[0])
+    b = conto["balance"]
+    return float(b["balance"]) + float(b.get("profitLoss", 0))
 
 
 _SESSIONE_CACHE = {"header": None, "quando": 0.0}

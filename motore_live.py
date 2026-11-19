@@ -28,6 +28,44 @@ SCOSTAMENTO_MAX = 5.0  # dollari tra prezzo del tick e prezzo di riempimento
 
 MAX_BARRE_POSIZIONE = 32  # come nella strategia: dopo 32 candele da 15 minuti la posizione scade
 MAX_POSIZIONI = int(os.getenv("MAX_POSIZIONI", "1"))  # quante operazioni aperte in contemporanea
+LIMITE_PERDITA_GIORNO = float(os.getenv("LIMITE_PERDITA_GIORNO", "30"))  # euro
+LIMITE_PERDITA_TOTALE = float(os.getenv("LIMITE_PERDITA_TOTALE", "90"))  # euro
+FILE_RISCHIO = os.getenv("FILE_RISCHIO", "stato_rischio.json")
+
+
+class Rischio:
+    """Ferma nuovi ordini se la perdita supera il limite del giorno o quello totale.
+    Il capitale di partenza è salvato su file, così un riavvio non azzera il conteggio."""
+
+    def __init__(self, conto: str, equity: float):
+        import json
+        self.path = FILE_RISCHIO
+        try:
+            dati = json.load(open(self.path))
+        except Exception:
+            dati = {}
+        if dati.get("conto") != conto:
+            dati = {"conto": conto, "inizio": equity}
+        self.dati = dati
+        self.bloccato_avvisato = None
+        self._salva()
+
+    def _salva(self):
+        import json
+        json.dump(self.dati, open(self.path, "w"))
+
+    def aggiorna(self, equity: float, oggi: str) -> str | None:
+        """Ritorna il motivo del blocco, oppure None se si può operare."""
+        if self.dati.get("giorno") != oggi:
+            self.dati.update({"giorno": oggi, "inizio_giorno": equity})
+            self._salva()
+        persa_giorno = self.dati["inizio_giorno"] - equity
+        persa_totale = self.dati["inizio"] - equity
+        if persa_totale >= LIMITE_PERDITA_TOTALE:
+            return f"perdita totale {persa_totale:.2f} € ≥ limite {LIMITE_PERDITA_TOTALE:.0f} €"
+        if persa_giorno >= LIMITE_PERDITA_GIORNO:
+            return f"perdita di oggi {persa_giorno:.2f} € ≥ limite {LIMITE_PERDITA_GIORNO:.0f} €"
+        return None
 
 
 class Stato:
@@ -38,6 +76,7 @@ class Stato:
         self.bar_entrata = None  # candela in cui è già stato aperto un ordine (un ingresso per candela)
         self.armato = {1: True, -1: True}  # False dopo un ingresso: si riarma quando il segnale si esaurisce
         self.broker_aperte = None  # posizioni GOLD aperte sul broker, aggiornate ogni 30 secondi nel live
+        self.blocco = None  # motivo del blocco per limite di perdita (None = si può operare)
         self._prep = None  # cache dei filtri, ricalcolata solo a candela chiusa
 
     def aggiungi_tick(self, t: datetime, prezzo: float):
@@ -91,7 +130,7 @@ def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordin
     stato.aggiungi_tick(t, (bid + ask) / 2)
     ora = pd.Timestamp(t)
     stato.scadenze = [(a, sc) for a, sc in stato.scadenze if sc > ora]
-    if len(stato.chiuse) < 300:
+    if len(stato.chiuse) < 300 or stato.blocco:
         return None
     if posizioni_occupate(stato, ora) >= MAX_POSIZIONI:
         return None
@@ -147,6 +186,13 @@ def live():
     storico = storico.set_index("time")[["open", "high", "low", "close"]]
     stato = Stato(storico)
     attivi = os.getenv("ORDINI_ATTIVI") == "1"
+    conto = broker.nome_conto()
+    rischio = Rischio(conto, broker.equity_eur())
+    ordini._avvisa(
+        f"Motore avviato sul conto {conto}. Ordini {'ATTIVI' if attivi else 'disattivati'}, "
+        f"max {MAX_POSIZIONI} posizioni, limiti perdita {LIMITE_PERDITA_GIORNO:.0f} €/giorno e "
+        f"{LIMITE_PERDITA_TOTALE:.0f} € totali (da {rischio.dati['inizio']:.2f} €)."
+    )
 
     def invia(lato, prezzo, sl, tp, unita):
         nome = "LONG" if lato == 1 else "SHORT"
@@ -161,16 +207,22 @@ def live():
         try:
             esito = broker.apri(nome, unita, abs(prezzo - sl), abs(tp - prezzo))
             print("INVIATO", descrizione, flush=True)
-            ordini._avvisa(f"Ordine inviato al conto DEMO Capital.com: {descrizione} | riempito a {esito.get('level')}")
+            ordini._avvisa(f"Ordine inviato al conto {conto} Capital.com: {descrizione} | riempito a {esito.get('level')}")
         except Exception as e:
             print("ERRORE", e, flush=True)
-            ordini._avvisa(f"ERRORE ordine demo: {e} | {descrizione}")
+            ordini._avvisa(f"ERRORE ordine {conto}: {e} | {descrizione}")
 
     ultimo_conteggio = 0.0
     while True:
         try:
             if time.time() - ultimo_conteggio > 30:
                 stato.broker_aperte = broker.conta_posizioni_gold()
+                motivo = rischio.aggiorna(broker.equity_eur(), datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                if motivo and motivo != stato.blocco:
+                    ordini._avvisa(f"STOP nuovi ordini ({conto}): {motivo}. Le posizioni aperte restano con il loro stop e target.")
+                elif stato.blocco and not motivo:
+                    ordini._avvisa(f"Limiti di perdita rientrati ({conto}): il motore riprende a operare.")
+                stato.blocco = motivo
                 ultimo_conteggio = time.time()
             bid, ask = broker.prezzo_bid_ask()
             gestisci_tick(stato, datetime.now(timezone.utc).replace(tzinfo=None), bid, ask, invia)
