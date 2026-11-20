@@ -220,6 +220,9 @@ def simula(c: pd.DataFrame, eurusd: float):
 
 # ───────── Telegram e stato ─────────
 def invia(testo: str):
+    nome = os.getenv("NOME_STRATEGIA", "").strip()
+    if nome:  # etichetta per capire quale strategia ha mandato il messaggio
+        testo = f"[{nome}]\n{testo}"
     token = os.environ["TELEGRAM_TOKEN"]
     chat = os.environ["TELEGRAM_CHAT_ID"]
     resp = requests.post(

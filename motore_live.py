@@ -180,6 +180,7 @@ def replay(path: str):
 
 
 def live():
+    os.environ.setdefault("NOME_STRATEGIA", "STRATEGIA ORO")
     import broker_capital as broker
     import ordini
     import scarica_storico
