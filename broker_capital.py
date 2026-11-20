@@ -90,6 +90,55 @@ def _login() -> dict:
     }
 
 
+def candele(risoluzione: str = "HOUR_4", quante: int = 300) -> list:
+    """Ultime candele (prezzo medio bid/ask). Ogni elemento: (inizio UTC, open, high, low, close)."""
+    h = _sessione()
+    r = requests.get(f"{_base()}/prices/{EPIC}", headers=h, params={"resolution": risoluzione, "max": quante}, timeout=30)
+    r.raise_for_status()
+    m = lambda p: (float(p["bid"]) + float(p["ask"])) / 2
+    return [(x["snapshotTimeUTC"], m(x["openPrice"]), m(x["highPrice"]), m(x["lowPrice"]), m(x["closePrice"]))
+            for x in r.json().get("prices", [])]
+
+
+def eurusd() -> float:
+    h = _sessione()
+    r = requests.get(f"{_base()}/markets/EURUSD", headers=h, timeout=20)
+    r.raise_for_status()
+    snap = r.json()["snapshot"]
+    return (float(snap["bid"]) + float(snap["offer"])) / 2
+
+
+def posizioni_gold() -> list:
+    """Posizioni aperte sull'oro: dict con dealId, lato (1/-1), size, level, stopLevel, upl."""
+    h = _sessione()
+    r = requests.get(f"{_base()}/positions", headers=h, timeout=20)
+    r.raise_for_status()
+    out = []
+    for p in r.json().get("positions", []):
+        if p["market"]["epic"] != EPIC:
+            continue
+        pos = p["position"]
+        out.append({
+            "dealId": pos["dealId"], "lato": 1 if pos["direction"] == "BUY" else -1,
+            "size": float(pos["size"]), "level": float(pos["level"]),
+            "stopLevel": pos.get("stopLevel"), "upl": pos.get("upl"),
+        })
+    return out
+
+
+def sposta_stop(deal_id: str, livello: float) -> None:
+    h = _sessione()
+    r = requests.put(f"{_base()}/positions/{deal_id}", headers=h,
+                     json={"stopLevel": round(livello, DECIMALI_PREZZO), "guaranteedStop": False}, timeout=20)
+    r.raise_for_status()
+
+
+def chiudi_deal(deal_id: str) -> None:
+    h = _sessione()
+    r = requests.delete(f"{_base()}/positions/{deal_id}", headers=h, timeout=20)
+    r.raise_for_status()
+
+
 def conta_posizioni_gold() -> int:
     h = _sessione()
     r = requests.get(f"{_base()}/positions", headers=h, timeout=20)

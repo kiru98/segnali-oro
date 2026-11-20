@@ -1,0 +1,14 @@
+[Unit]
+Description=Strategia medie 10/30 oro (4 ore)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/segnal
+EnvironmentFile=/opt/segnal/.env
+ExecStart=/opt/segnal/venv/bin/python /opt/segnal/strategia_medie.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
