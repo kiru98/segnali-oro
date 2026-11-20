@@ -28,6 +28,8 @@ SCOSTAMENTO_MAX = 5.0  # dollari tra prezzo del tick e prezzo di riempimento
 
 MAX_BARRE_POSIZIONE = 32  # come nella strategia: dopo 32 candele da 15 minuti la posizione scade
 MAX_POSIZIONI = int(os.getenv("MAX_POSIZIONI", "1"))  # quante operazioni aperte in contemporanea
+ORA_INIZIO_UTC = int(os.getenv("ORA_INIZIO_UTC", "7"))  # 8:00 in Italia (ora solare)
+ORA_FINE_UTC = int(os.getenv("ORA_FINE_UTC", "17"))    # 18:00 in Italia: nuovi ingressi solo prima di quest'ora
 LIMITE_PERDITA_GIORNO = float(os.getenv("LIMITE_PERDITA_GIORNO", "30"))  # euro
 LIMITE_PERDITA_TOTALE = float(os.getenv("LIMITE_PERDITA_TOTALE", "90"))  # euro
 FILE_RISCHIO = os.getenv("FILE_RISCHIO", "stato_rischio.json")
@@ -142,6 +144,8 @@ def gestisci_tick(stato: Stato, t: datetime, bid: float, ask: float, invia_ordin
         stato.armato[1] = True
     if not ultima["pronto_short"]:
         stato.armato[-1] = True
+    if not (ORA_INIZIO_UTC <= ora.hour < ORA_FINE_UTC):  # solo sessioni di Londra e New York
+        return None
     esito = regole.scatta(ultima, bid, ask)
     if esito is None:
         return None
@@ -190,7 +194,7 @@ def live():
     rischio = Rischio(conto, broker.equity_eur())
     ordini._avvisa(
         f"Motore avviato sul conto {conto}. Ordini {'ATTIVI' if attivi else 'disattivati'}, "
-        f"max {MAX_POSIZIONI} posizioni, limiti perdita {LIMITE_PERDITA_GIORNO:.0f} €/giorno e "
+        f"max {MAX_POSIZIONI} posizioni, ingressi {ORA_INIZIO_UTC}-{ORA_FINE_UTC} UTC, limiti perdita {LIMITE_PERDITA_GIORNO:.0f} €/giorno e "
         f"{LIMITE_PERDITA_TOTALE:.0f} € totali (da {rischio.dati['inizio']:.2f} €)."
     )
 
