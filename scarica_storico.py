@@ -38,7 +38,7 @@ def scarica() -> pd.DataFrame:
     inizio = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=GIORNI)
     righe = []
     params = {"resolution": RISOLUZIONE, "max": MAX_PER_CHIAMATA}
-    for _ in range(100):  # tetto di sicurezza
+    for _ in range(400):  # tetto di sicurezza (circa 400.000 candele)
         prezzi = _chiedi(h, base, params)
         if not prezzi:
             break
