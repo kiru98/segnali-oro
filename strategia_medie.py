@@ -133,6 +133,9 @@ def passo(stato: dict) -> dict:
                    f"nel conto {conto} (aperta a mano o da un altro bot). Il conto non permette long e short insieme.")
             return stato
         equity = broker.equity_eur()
+        if stato.get("conto_capitale") != conto:  # nuovo (sotto)conto: riparte il calcolo del calo massimo
+            stato["capitale_iniziale"] = equity
+            stato["conto_capitale"] = conto
         stato.setdefault("capitale_iniziale", equity)
         if equity < stato["capitale_iniziale"] * (1 - CALO_MAX):
             avvisa(f"Segnale ignorato: capitale {equity:.2f} € sotto il limite di calo del {CALO_MAX*100:.0f}% "

@@ -40,16 +40,37 @@ def _base() -> str:
 
 
 def nome_conto() -> str:
-    return "REALE" if conto_reale() else "DEMO"
+    tipo = "REALE" if conto_reale() else "DEMO"
+    if os.getenv("CAPITAL_SOTTOCONTO", "").strip():
+        _sessione()
+        return f"{tipo} – sottoconto {_SESSIONE_CACHE.get('account_name')}"
+    return tipo
+
+
+def _norm(testo: str) -> str:
+    return "".join(c for c in (testo or "").lower() if c.isalnum())
+
+
+def elenco_conti() -> list:
+    """Sottoconti disponibili: nome, id, saldo (nessuna chiave)."""
+    h = _sessione()
+    r = requests.get(f"{_base()}/accounts", headers=h, timeout=20)
+    r.raise_for_status()
+    return r.json().get("accounts", [])
 
 
 def equity_eur() -> float:
-    """Saldo + profitto/perdita aperto del conto preferito (valuta del conto)."""
+    """Saldo + profitto/perdita aperto del sottoconto su cui opera il bot."""
     h = _sessione()
     r = requests.get(f"{_base()}/accounts", headers=h, timeout=20)
     r.raise_for_status()
     conti = r.json().get("accounts", [])
-    conto = next((a for a in conti if a.get("preferred")), conti[0])
+    scelto = _SESSIONE_CACHE.get("account_id")
+    conto = next((a for a in conti if a.get("accountId") == scelto), None)
+    if conto is None:
+        if os.getenv("CAPITAL_SOTTOCONTO", "").strip():
+            raise RuntimeError("Sottoconto non trovato tra i conti: blocco per sicurezza.")
+        conto = next((a for a in conti if a.get("preferred")), conti[0])
     b = conto["balance"]
     return float(b["balance"]) + float(b.get("profitLoss", 0))
 
@@ -82,12 +103,30 @@ def _login() -> dict:
     )
     if not r.ok:
         raise RuntimeError(f"login Capital.com fallito ({r.status_code}): {r.text[:300]}")
-    return {
+    header = {
         "X-CAP-API-KEY": os.environ["CAPITAL_API_KEY"].strip(),
         "CST": r.headers["CST"],
         "X-SECURITY-TOKEN": r.headers["X-SECURITY-TOKEN"],
         "Content-Type": "application/json",
     }
+    attuale = r.json().get("currentAccountId")
+    _SESSIONE_CACHE["account_id"] = attuale
+    nome = os.getenv("CAPITAL_SOTTOCONTO", "").strip()
+    if nome:  # opera SOLO sul sottoconto indicato (per nome o per ID)
+        a = requests.get(f"{_base()}/accounts", headers=header, timeout=20)
+        a.raise_for_status()
+        conti = a.json().get("accounts", [])
+        conto = next((c for c in conti if c.get("accountId") == nome or _norm(c.get("accountName")) == _norm(nome)), None)
+        if conto is None:
+            nomi = ", ".join(c.get("accountName", "?") for c in conti)
+            raise RuntimeError(f"Sottoconto '{nome}' non trovato. Conti disponibili: {nomi}. Nessun ordine inviato.")
+        if conto["accountId"] != attuale:
+            s = requests.put(f"{_base()}/session", headers=header, json={"accountId": conto["accountId"]}, timeout=20)
+            if not s.ok and "error.not-different.accountId" not in s.text:
+                raise RuntimeError(f"Cambio sottoconto fallito ({s.status_code}): {s.text[:200]}. Nessun ordine inviato.")
+        _SESSIONE_CACHE["account_id"] = conto["accountId"]
+        _SESSIONE_CACHE["account_name"] = conto.get("accountName")
+    return header
 
 
 def candele(risoluzione: str = "HOUR_4", quante: int = 300) -> list:
